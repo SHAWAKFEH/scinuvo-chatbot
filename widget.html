@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Scinuvo Assistant</title>
+<style>
+  /* ---- Scinuvo brand tokens ---- */
+  :root{
+    --ink:#080008;          /* near-black */
+    --fuchsia:#c8208a;      /* brand accent */
+    --fuchsia-dark:#a01870;
+    --paper:#ffffff;
+    --mist:#f5f2f4;         /* soft bubble bg */
+    --line:#ece7ea;
+    --muted:#8a8290;
+  }
+  *{box-sizing:border-box}
+
+  /* ---- Floating button ---- */
+  #scinuvo-launcher{
+    position:fixed; bottom:22px; right:22px; z-index:99999;
+    width:60px; height:60px; border:0; border-radius:50%; cursor:pointer;
+    background:var(--fuchsia); color:#fff;
+    box-shadow:0 8px 24px rgba(200,32,138,.38);
+    display:flex; align-items:center; justify-content:center;
+    transition:transform .15s ease, background .15s ease;
+  }
+  #scinuvo-launcher:hover{ background:var(--fuchsia-dark); transform:translateY(-2px) }
+  #scinuvo-launcher svg{ width:28px; height:28px }
+
+  /* ---- Chat panel ---- */
+  #scinuvo-panel{
+    position:fixed; bottom:94px; right:22px; z-index:99999;
+    width:370px; max-width:calc(100vw - 32px);
+    height:560px; max-height:calc(100vh - 130px);
+    background:var(--paper); border-radius:18px; overflow:hidden;
+    box-shadow:0 20px 60px rgba(8,0,8,.28);
+    display:none; flex-direction:column;
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Tahoma,Arial,sans-serif;
+  }
+  #scinuvo-panel.open{ display:flex }
+
+  .sc-header{
+    background:var(--ink); color:#fff; padding:16px 18px;
+    display:flex; align-items:center; gap:12px;
+  }
+  .sc-logo{
+    width:34px; height:34px; border-radius:9px; flex:0 0 auto;
+    background:var(--fuchsia); display:flex; align-items:center; justify-content:center;
+    font-weight:800; font-size:16px;
+  }
+  .sc-title{ font-size:15px; font-weight:700; line-height:1.2 }
+  .sc-sub{ font-size:11.5px; color:#c9c2ce; margin-top:2px }
+  .sc-close{ margin-inline-start:auto; background:none; border:0; color:#c9c2ce; font-size:22px; cursor:pointer; line-height:1 }
+  .sc-close:hover{ color:#fff }
+
+  .sc-messages{ flex:1; overflow-y:auto; padding:16px; background:var(--paper); display:flex; flex-direction:column; gap:10px }
+
+  .sc-msg{ max-width:82%; padding:10px 13px; border-radius:14px; font-size:14px; line-height:1.5; white-space:pre-wrap; word-wrap:break-word }
+  .sc-bot{ background:var(--mist); color:var(--ink); align-self:flex-start; border-bottom-left-radius:5px }
+  .sc-user{ background:var(--fuchsia); color:#fff; align-self:flex-end; border-bottom-right-radius:5px }
+  .sc-msg[dir="rtl"]{ text-align:right }
+  .sc-bot[dir="rtl"]{ border-bottom-left-radius:14px; border-bottom-right-radius:5px }
+  .sc-user[dir="rtl"]{ border-bottom-right-radius:14px; border-bottom-left-radius:5px }
+
+  .sc-starters{ display:flex; flex-wrap:wrap; gap:7px; padding:2px 16px 12px }
+  .sc-starter{
+    background:#fff; border:1px solid var(--line); color:var(--ink);
+    padding:7px 12px; border-radius:20px; font-size:12.5px; cursor:pointer; font-family:inherit;
+    transition:border-color .12s ease, color .12s ease;
+  }
+  .sc-starter:hover{ border-color:var(--fuchsia); color:var(--fuchsia) }
+
+  .sc-typing{ align-self:flex-start; display:flex; gap:4px; padding:12px 14px; background:var(--mist); border-radius:14px; border-bottom-left-radius:5px }
+  .sc-typing span{ width:7px; height:7px; border-radius:50%; background:var(--muted); animation:sc-bounce 1.2s infinite }
+  .sc-typing span:nth-child(2){ animation-delay:.15s } .sc-typing span:nth-child(3){ animation-delay:.3s }
+  @keyframes sc-bounce{ 0%,60%,100%{opacity:.3;transform:translateY(0)} 30%{opacity:1;transform:translateY(-4px)} }
+
+  .sc-input{ display:flex; gap:8px; padding:12px; border-top:1px solid var(--line); background:#fff }
+  .sc-input input{ flex:1; border:1px solid var(--line); border-radius:22px; padding:10px 15px; font-size:14px; font-family:inherit; outline:none }
+  .sc-input input:focus{ border-color:var(--fuchsia) }
+  .sc-send{ background:var(--fuchsia); border:0; border-radius:50%; width:42px; height:42px; cursor:pointer; color:#fff; flex:0 0 auto; display:flex; align-items:center; justify-content:center }
+  .sc-send:hover{ background:var(--fuchsia-dark) }
+  .sc-send svg{ width:19px; height:19px }
+  @media (prefers-reduced-motion:reduce){ *{animation:none!important; transition:none!important} }
+</style>
+</head>
+<body>
+
+<!-- ====== Scinuvo widget markup (this whole block is what the IT team embeds) ====== -->
+<button id="scinuvo-launcher" aria-label="Open chat">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+</button>
+
+<div id="scinuvo-panel" role="dialog" aria-label="Scinuvo assistant">
+  <div class="sc-header">
+    <div class="sc-logo">S</div>
+    <div>
+      <div class="sc-title" id="sc-title">Scinuvo Assistant</div>
+      <div class="sc-sub" id="sc-sub">Ask about our products</div>
+    </div>
+    <button class="sc-close" id="sc-close" aria-label="Close">&times;</button>
+  </div>
+  <div class="sc-messages" id="sc-messages"></div>
+  <div class="sc-starters" id="sc-starters"></div>
+  <div class="sc-input">
+    <input id="sc-text" type="text" autocomplete="off">
+    <button class="sc-send" id="sc-send" aria-label="Send">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>
+    </button>
+  </div>
+</div>
+
+<script>
+(function(){
+  // ====== CONFIG ======
+  // For local testing the widget is served by the Flask app, so a relative
+  // path works (same origin). For production, the IT team sets this to the
+  // full backend URL, e.g. "https://api.scinuvo.com/chat".
+  const API_URL = "/chat";
+
+  // ====== Language detection & copy ======
+  const arabicRe = /[\u0600-\u06FF]/;
+  const isArabic = t => arabicRe.test(t);
+  const prefersArabic = (navigator.language || "").toLowerCase().startsWith("ar");
+
+  const COPY = {
+    ar: {
+      title: "مساعد سينوفو",
+      sub: "اسأل عن منتجاتنا",
+      greeting: "مرحباً! 👋 أنا مساعد سينوفو. بقدر أساعدك تختار السيروم المناسب، أو أحكيلك عن المنتجات والأسعار وطريقة الاستخدام. كيف بقدر أساعدك؟",
+      placeholder: "اكتب رسالتك...",
+      starters: ["شو أفضل سيروم للبقع؟", "شو بنصح للتجاعيد؟", "شو الأسعار؟", "بتوصلوا للبيت؟"],
+      error: "عذراً، صار خطأ. حاول مرة ثانية."
+    },
+    en: {
+      title: "Scinuvo Assistant",
+      sub: "Ask about our products",
+      greeting: "Hi! 👋 I'm the Scinuvo assistant. I can help you find the right serum, or answer questions about our products, prices, and how to use them. How can I help?",
+      placeholder: "Type your message...",
+      starters: ["Which serum for dark spots?", "What helps with wrinkles?", "Show me prices", "Do you deliver?"],
+      error: "Sorry, something went wrong. Please try again."
+    }
+  };
+
+  let lang = prefersArabic ? "ar" : "en";
+  const t = () => COPY[lang];
+
+  // ====== Elements ======
+  const launcher = document.getElementById("scinuvo-launcher");
+  const panel    = document.getElementById("scinuvo-panel");
+  const closeBtn = document.getElementById("sc-close");
+  const msgs     = document.getElementById("sc-messages");
+  const starters = document.getElementById("sc-starters");
+  const input    = document.getElementById("sc-text");
+  const sendBtn  = document.getElementById("sc-send");
+
+  function applyLang(){
+    document.getElementById("sc-title").textContent = t().title;
+    document.getElementById("sc-sub").textContent = t().sub;
+    input.placeholder = t().placeholder;
+    input.dir = lang === "ar" ? "rtl" : "ltr";
+  }
+
+  function addMessage(text, who){
+    const el = document.createElement("div");
+    el.className = "sc-msg " + (who === "user" ? "sc-user" : "sc-bot");
+    el.dir = isArabic(text) ? "rtl" : "ltr";
+    // Wrap phone numbers, emails, URLs and standalone number/Latin runs in a
+    // left-to-right isolate so they don't get visually reversed inside RTL text.
+    const LRI = "\u2066", PDI = "\u2069"; // Unicode isolates
+    const fixed = text.replace(
+      /(\+?\d[\d\s()\-]{5,}\d|[\w.+-]+@[\w.-]+\.\w+|(?:https?:\/\/)?[\w.-]+\.(?:com|net|org|jo)\b)/g,
+      m => LRI + m + PDI
+    );
+    el.textContent = fixed;
+    msgs.appendChild(el);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  function showStarters(){
+    starters.innerHTML = "";
+    t().starters.forEach(q => {
+      const b = document.createElement("button");
+      b.className = "sc-starter";
+      b.textContent = q;
+      b.dir = isArabic(q) ? "rtl" : "ltr";
+      b.onclick = () => { starters.innerHTML = ""; send(q); };
+      starters.appendChild(b);
+    });
+  }
+
+  let typingEl = null;
+  const HISTORY_LIMIT = 10;          // keep last 10 turns for memory
+  let history = [];                  // [{role:'user'|'assistant', content:'...'}]
+
+  function showTyping(){
+    typingEl = document.createElement("div");
+    typingEl.className = "sc-typing";
+    typingEl.innerHTML = "<span></span><span></span><span></span>";
+    msgs.appendChild(typingEl);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+  function hideTyping(){ if(typingEl){ typingEl.remove(); typingEl = null; } }
+
+  async function send(text){
+    text = (text || input.value).trim();
+    if(!text) return;
+    // switch UI language to match what the customer typed
+    if(isArabic(text) && lang !== "ar"){ lang = "ar"; applyLang(); }
+    else if(!isArabic(text) && lang !== "en"){ lang = "en"; applyLang(); }
+
+    addMessage(text, "user");
+    input.value = "";
+    starters.innerHTML = "";
+    showTyping();
+
+    try{
+      const res = await fetch(API_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ message: text, history: history })
+      });
+      const data = await res.json();
+      hideTyping();
+      const reply = data.reply || t().error;
+      addMessage(reply, "bot");
+      // record this turn in memory (and trim to the last N)
+      history.push({ role: "user", content: text });
+      history.push({ role: "assistant", content: reply });
+      if(history.length > HISTORY_LIMIT) history = history.slice(-HISTORY_LIMIT);
+    }catch(e){
+      hideTyping();
+      addMessage(t().error, "bot");
+    }
+  }
+
+  function openPanel(){
+    panel.classList.add("open");
+    if(!msgs.dataset.greeted){
+      applyLang();
+      addMessage(t().greeting, "bot");
+      showStarters();
+      msgs.dataset.greeted = "1";
+    }
+    input.focus();
+  }
+
+  launcher.onclick = () => panel.classList.contains("open") ? panel.classList.remove("open") : openPanel();
+  closeBtn.onclick = () => panel.classList.remove("open");
+  sendBtn.onclick = () => send();
+  input.addEventListener("keydown", e => { if(e.key === "Enter"){ e.preventDefault(); send(); } });
+})();
+</script>
+</body>
+</html>

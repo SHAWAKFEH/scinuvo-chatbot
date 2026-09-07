@@ -1,0 +1,7 @@
+flask
+flask-cors
+anthropic
+chromadb
+sentence-transformers
+# For production hosting, the IT team should also install a WSGI server:
+#   waitress   (simplest on Windows)   or   gunicorn   (Linux)

@@ -1,0 +1,17 @@
+@"
+.env
+*.key
+venv/
+__pycache__/
+*.pyc
+scinuvo_db/
+scraped_products.json
+product25.html
+chat.py
+*.pdf
+*.xlsx
+*.zip
+SCINUVO_Carousels/
+.DS_Store
+Thumbs.db
+"@ | Set-Content -Path .gitignore -Encoding utf8
