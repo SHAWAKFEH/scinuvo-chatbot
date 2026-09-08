@@ -126,3 +126,6 @@ To scale to more products, raise `END_ID` in `scrape.py`.
 - It **refuses medical advice** and redirects to a professional.
 - Product claims reflect the brand's own published content and should be kept in sync
   with what the company approves.
+
+##Contributors
+- Talal Rahahleh (https://github.com/talalrahahleh)
